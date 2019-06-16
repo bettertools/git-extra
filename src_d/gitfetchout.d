@@ -74,9 +74,8 @@ int main(string[] args)
             writefln("    local branch '%s' does not exist", branch);
             run(format("git fetch %s %s:%s", repo, branch, branch));
             run(format("git checkout %s", branch));
-            // Use execute shell to overcome dumb terminal warnings
             // NOTE the '--' is to let git know it's a revision, not a filename
-            writeln(executeShell("git show -s HEAD --"));
+            run(format("git --no-pager show -s HEAD --"));
             return 0;
         }
         gitShowLocalOutput = result.output;
@@ -115,7 +114,7 @@ int main(string[] args)
     }
 
     run("git checkout FETCH_HEAD");
-    run(format("git branch -D %s", branch));
+    run(format("git --no-pager branch -D %s", branch));
     run(format("git checkout -b %s", branch));
     return 0;
 }
