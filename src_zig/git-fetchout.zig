@@ -8,8 +8,7 @@ const gitutil = @import("./gitutil.zig");
 
 usingnamespace @import("./cmdlinetool.zig");
 
-var direct_allocator = std.heap.DirectAllocator.init();
-var arena = std.heap.ArenaAllocator.init(&direct_allocator.allocator);
+var arena = std.heap.ArenaAllocator.init(std.heap.direct_allocator);
 const allocator = &arena.allocator;
 
 fn usage() void {
