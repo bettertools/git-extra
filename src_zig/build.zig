@@ -12,6 +12,15 @@ pub fn build(b: *Builder) !void {
     exe.single_threaded = true;
     exe.setOutputDir("out");
 
+    const zogIndexFile = "../../zog/zog.zig";
+    std.fs.File.access(zogIndexFile) catch |err| {
+        std.debug.warn("Error: zog index file '{}' does not exist\n", zogIndexFile);
+        std.debug.warn("       have you downloaded the zog library? Run the following to clone it:\n");
+        std.debug.warn("       git clone https://github.com/marler8997/zog ../../zog\n");
+        return err;
+    };
+    exe.addPackagePath("zog", zogIndexFile);
+
     const run_cmd = exe.run();
 
     const run_step = b.step("run", "Run the app");

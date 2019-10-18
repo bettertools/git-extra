@@ -1,6 +1,7 @@
 const std = @import("std");
 
-const cmdlinetool = @import("./cmdlinetool.zig");
+const zog = @import("zog");
+const cmdlinetool = zog.cmdlinetool;
 
 const GitShowInfo = struct {
     sha : []u8,

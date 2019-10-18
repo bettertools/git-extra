@@ -1,12 +1,14 @@
 const builtin = @import("builtin");
 const std = @import("std");
 
-const varargs = @import("./varargs.zig");
-const appendlib = @import("./appendlib.zig");
-const runutil = @import("./runutil.zig");
+const zog = @import("zog");
+const varargs = zog.varargs;
+const appendlib = zog.appendlib;
+const runutil = zog.runutil;
+usingnamespace zog.cmdlinetool;
+
 const gitutil = @import("./gitutil.zig");
 
-usingnamespace @import("./cmdlinetool.zig");
 
 var arena = std.heap.ArenaAllocator.init(std.heap.direct_allocator);
 const allocator = &arena.allocator;
