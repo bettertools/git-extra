@@ -10,7 +10,6 @@ pub fn build(b: *Builder) !void {
         else => return err,
     };
     exe.single_threaded = true;
-    exe.setOutputDir("out");
 
     const zogIndexFile = "../../zog/zog.zig";
     std.fs.File.access(zogIndexFile) catch |err| {
