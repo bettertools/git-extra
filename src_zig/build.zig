@@ -11,7 +11,11 @@ pub fn build(b: *Builder) !void {
     };
     exe.single_threaded = true;
 
-    const zogIndexFile = "../../zog/zog.zig";
+    // TODO: I'd like something like this:
+    //const zogIndexFile = buildPath(.{"..", "..", "zog", "zog.zig"});
+    const sep = [1]u8 {std.fs.path.sep};
+    const zogIndexFile = ".." ++ sep ++ ".." ++ sep ++ "zog" ++ sep ++ "zog.zig";
+
     std.fs.File.access(zogIndexFile) catch |err| {
         std.debug.warn("Error: zog index file '{}' does not exist\n", .{zogIndexFile});
         std.debug.warn("       have you downloaded the zog library? Run the following to clone it:\n", .{});
@@ -27,4 +31,13 @@ pub fn build(b: *Builder) !void {
 
     b.default_step.dependOn(&exe.step);
     b.installArtifact(exe);
+}
+
+// TODO: I want something like this from the standard library
+pub fn buildPath(comptime parts: var) []const u8 {
+    var path : []const u8 = "";
+    inline for (parts) |part| {
+        path = path ++ part;
+    }
+    return path;
 }
