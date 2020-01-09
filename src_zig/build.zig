@@ -13,9 +13,9 @@ pub fn build(b: *Builder) !void {
 
     const zogIndexFile = "../../zog/zog.zig";
     std.fs.File.access(zogIndexFile) catch |err| {
-        std.debug.warn("Error: zog index file '{}' does not exist\n", zogIndexFile);
-        std.debug.warn("       have you downloaded the zog library? Run the following to clone it:\n");
-        std.debug.warn("       git clone https://github.com/marler8997/zog ../../zog\n");
+        std.debug.warn("Error: zog index file '{}' does not exist\n", .{zogIndexFile});
+        std.debug.warn("       have you downloaded the zog library? Run the following to clone it:\n", .{});
+        std.debug.warn("       git clone https://github.com/marler8997/zog ../../zog\n", .{});
         return err;
     };
     exe.addPackagePath("zog", zogIndexFile);

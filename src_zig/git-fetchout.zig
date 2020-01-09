@@ -14,8 +14,8 @@ var arena = std.heap.ArenaAllocator.init(std.heap.direct_allocator);
 const allocator = &arena.allocator;
 
 fn usage() void {
-    log("Usage:");
-    log("    git fetchout <repo> <branch>");
+    log("Usage:", .{});
+    log("    git fetchout <repo> <branch>", .{});
 }
 
 fn help() void {
@@ -25,7 +25,7 @@ fn help() void {
     \\This command fetches a remote branch and checks it out.
     \\If a local branch with the same name already exists, it will
     \\prompt the user to overwrite the local branch.
-    );
+    , .{});
     //writeln("Note: this is equivalent to:");
     //writeln("    1. git fetch <repo> <branch>");
     //writeln("    2. git checkout FETCH_HEAD");
@@ -43,7 +43,7 @@ pub fn main() u8 {
         if (err == ErrorReported) {
             return 1;
         }
-        std.debug.warn("error: {}\n", @errorName(err));
+        std.debug.warn("error: {}\n", .{@errorName(err)});
         return 1;
     };
 }
@@ -68,13 +68,13 @@ fn main2() !u8 {
             //} else if (arg == "-r" || arg == "--repo") {
             //    repo = getOptionArg(args, &i);
             } else {
-                log("Error: unknown option '{}'", arg);
+                log("Error: unknown option '{}'", .{arg});
                 return 1;
             }
         }
     }
     if (args.len != 2) {
-        log("Error: 'git fetchout' requires 2 arguments but got {}", args.len);
+        log("Error: 'git fetchout' requires 2 arguments but got {}", .{args.len});
         usage();
         return 1;
     }
@@ -86,52 +86,52 @@ fn main2() !u8 {
     var gitShowLocalOutput : []u8 = undefined;
     {
         // NOTE the '--' is to let git know it's a revision, not a filename
-        const result = try runGetOutput(allocator, "git", "show", "-s", branch, "--");
+        const result = try runGetOutput(allocator, .{"git", "show", "-s", branch, "--"});
         if (runutil.runFailed(&result)) {
-            log("    local branch '{}' does not exist", branch);
-            const branchArg = try std.fmt.allocPrint(allocator, "{}:{}", branch, branch);
-            try enforceRunPassed(try run(allocator, "git", "fetch", repo, branchArg));
-            try enforceRunPassed(try run(allocator, "git", "checkout", branch));
+            log("    local branch '{}' does not exist", .{branch});
+            const branchArg = try std.fmt.allocPrint(allocator, "{}:{}", .{branch, branch});
+            try enforceRunPassed(try run(allocator, .{"git", "fetch", repo, branchArg}));
+            try enforceRunPassed(try run(allocator, .{"git", "checkout", branch}));
 
             // NOTE the '--' is to let git know it's a revision, not a filename
-            try enforceRunPassed(try run(allocator, "git", "--no-pager", "show", "-s", "HEAD", "--"));
+            try enforceRunPassed(try run(allocator, .{"git", "--no-pager", "show", "-s", "HEAD", "--"}));
             return 0;
         }
         gitShowLocalOutput = try runutil.runCombineOutput(allocator, &result);
     }
 
     const localBranchInfo = try gitutil.parseGitShow(gitShowLocalOutput);
-    log("    local branch: {}", localBranchInfo.sha);
+    log("    local branch: {}", .{localBranchInfo.sha});
 
-    try enforceRunPassed(try run(allocator, "git", "fetch", repo, branch));
+    try enforceRunPassed(try run(allocator, .{"git", "fetch", repo, branch}));
 
     // NOTE the '--' is to let git know it's a revision, not a filename
     const gitShowFetchHead = try enforceRunGetOutputPassed(allocator,
-        try runGetOutput(allocator, "git", "show", "-s", "FETCH_HEAD", "--"));
+        try runGetOutput(allocator, .{"git", "show", "-s", "FETCH_HEAD", "--"}));
     const fetchHeadInfo = try gitutil.parseGitShow(gitShowFetchHead);
-    log("    remote branch: {}", fetchHeadInfo.sha);
+    log("    remote branch: {}", .{fetchHeadInfo.sha});
 
     if (std.mem.eql(u8, localBranchInfo.sha, fetchHeadInfo.sha)) {
-        log("local branch is already up-to-date");
-        try enforceRunPassed(try run(allocator, "git", "checkout", branch));
+        log("local branch is already up-to-date", .{});
+        try enforceRunPassed(try run(allocator, .{"git", "checkout", branch}));
         return 0;
     }
 
-    log("================================================================================");
-    log("LOCAL_BRANCH");
-    log("================================================================================");
-    log("{}", gitShowLocalOutput);
-    log("================================================================================");
-    log("REMOTE_BRANCH");
-    log("================================================================================");
-    log("{}", gitShowFetchHead);
-    log("--------------------------------------------------------------------------------");
+    log("================================================================================", .{});
+    log("LOCAL_BRANCH", .{});
+    log("================================================================================", .{});
+    log("{}", .{gitShowLocalOutput});
+    log("================================================================================", .{});
+    log("REMOTE_BRANCH", .{});
+    log("================================================================================", .{});
+    log("{}", .{gitShowFetchHead});
+    log("--------------------------------------------------------------------------------", .{});
 
     const result = try promptYesNo("Overwrite LOCAL_BRANCH with REMOTE_BRANCH");
     if (result) {
-        try enforceRunPassed(try run(allocator, "git", "checkout", "FETCH_HEAD"));
-        try enforceRunPassed(try run(allocator, "git", "--no-pager", "branch", "-D", branch));
-        try enforceRunPassed(try run(allocator, "git", "checkout", "-b", branch));
+        try enforceRunPassed(try run(allocator, .{"git", "checkout", "FETCH_HEAD"}));
+        try enforceRunPassed(try run(allocator, .{"git", "--no-pager", "branch", "-D", branch}));
+        try enforceRunPassed(try run(allocator, .{"git", "checkout", "-b", branch}));
     }
     return 0;
 }
@@ -140,7 +140,7 @@ fn promptYesNo(prompt: []const u8) !bool {
     var buffer = try std.Buffer.initSize(allocator, 0);
     defer buffer.deinit();
     while (true) {
-        std.debug.warn("{}[y/n]? ", prompt);
+        std.debug.warn("{}[y/n]? ", .{prompt});
         const answer = try std.io.readLine(&buffer);
         if (std.mem.eql(u8, answer, "y")) return true;
         if (std.mem.eql(u8, answer, "n")) return false;
