@@ -82,19 +82,32 @@ fn main2() !u8 {
     const repo = args[0];
     const branch = args[1];
 
+    const git = gitblock: {
+        // workaround https://github.com/ziglang/zig/issues/4120
+        if (builtin.os == .windows) {
+            const result = try runGetOutput(allocator, .{"C:\\Windows\\System32\\where.exe", "git"});
+            if (runutil.runFailed(&result)) {
+                log("Error: failed to find 'git' in PATH", .{});
+                return 1;
+            }
+            break :gitblock firstLine(result.stdout);
+        }
+        break :gitblock "git";
+    };
+
     // check if local branch exists and if it is updated
     var gitShowLocalOutput : []u8 = undefined;
     {
         // NOTE the '--' is to let git know it's a revision, not a filename
-        const result = try runGetOutput(allocator, .{"git", "show", "-s", branch, "--"});
+        const result = try runGetOutput(allocator, .{git, "show", "-s", branch, "--"});
         if (runutil.runFailed(&result)) {
             log("    local branch '{}' does not exist", .{branch});
             const branchArg = try std.fmt.allocPrint(allocator, "{}:{}", .{branch, branch});
-            try enforceRunPassed(try run(allocator, .{"git", "fetch", repo, branchArg}));
-            try enforceRunPassed(try run(allocator, .{"git", "checkout", branch}));
+            try enforceRunPassed(try run(allocator, .{git, "fetch", repo, branchArg}));
+            try enforceRunPassed(try run(allocator, .{git, "checkout", branch}));
 
             // NOTE the '--' is to let git know it's a revision, not a filename
-            try enforceRunPassed(try run(allocator, .{"git", "--no-pager", "show", "-s", "HEAD", "--"}));
+            try enforceRunPassed(try run(allocator, .{git, "--no-pager", "show", "-s", "HEAD", "--"}));
             return 0;
         }
         gitShowLocalOutput = try runutil.runCombineOutput(allocator, &result);
@@ -103,17 +116,17 @@ fn main2() !u8 {
     const localBranchInfo = try gitutil.parseGitShow(gitShowLocalOutput);
     log("    local branch: {}", .{localBranchInfo.sha});
 
-    try enforceRunPassed(try run(allocator, .{"git", "fetch", repo, branch}));
+    try enforceRunPassed(try run(allocator, .{git, "fetch", repo, branch}));
 
     // NOTE the '--' is to let git know it's a revision, not a filename
     const gitShowFetchHead = try enforceRunGetOutputPassed(allocator,
-        try runGetOutput(allocator, .{"git", "show", "-s", "FETCH_HEAD", "--"}));
+        try runGetOutput(allocator, .{git, "show", "-s", "FETCH_HEAD", "--"}));
     const fetchHeadInfo = try gitutil.parseGitShow(gitShowFetchHead);
     log("    remote branch: {}", .{fetchHeadInfo.sha});
 
     if (std.mem.eql(u8, localBranchInfo.sha, fetchHeadInfo.sha)) {
         log("local branch is already up-to-date", .{});
-        try enforceRunPassed(try run(allocator, .{"git", "checkout", branch}));
+        try enforceRunPassed(try run(allocator, .{git, "checkout", branch}));
         return 0;
     }
 
@@ -129,9 +142,9 @@ fn main2() !u8 {
 
     const result = try promptYesNo("Overwrite LOCAL_BRANCH with REMOTE_BRANCH");
     if (result) {
-        try enforceRunPassed(try run(allocator, .{"git", "checkout", "FETCH_HEAD"}));
-        try enforceRunPassed(try run(allocator, .{"git", "--no-pager", "branch", "-D", branch}));
-        try enforceRunPassed(try run(allocator, .{"git", "checkout", "-b", branch}));
+        try enforceRunPassed(try run(allocator, .{git, "checkout", "FETCH_HEAD"}));
+        try enforceRunPassed(try run(allocator, .{git, "--no-pager", "branch", "-D", branch}));
+        try enforceRunPassed(try run(allocator, .{git, "checkout", "-b", branch}));
     }
     return 0;
 }
@@ -145,4 +158,8 @@ fn promptYesNo(prompt: []const u8) !bool {
         if (std.mem.eql(u8, answer, "y")) return true;
         if (std.mem.eql(u8, answer, "n")) return false;
     }
+}
+
+fn firstLine(str: []const u8) []const u8 {
+    return str[0 .. std.mem.indexOfAny(u8, str, "\n\r") orelse str.len];
 }
