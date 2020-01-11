@@ -82,18 +82,7 @@ fn main2() !u8 {
     const repo = args[0];
     const branch = args[1];
 
-    const git = gitblock: {
-        // workaround https://github.com/ziglang/zig/issues/4120
-        if (builtin.os == .windows) {
-            const result = try runGetOutput(allocator, .{"C:\\Windows\\System32\\where.exe", "git"});
-            if (runutil.runFailed(&result)) {
-                log("Error: failed to find 'git' in PATH", .{});
-                return 1;
-            }
-            break :gitblock firstLine(result.stdout);
-        }
-        break :gitblock "git";
-    };
+    const git = "git";
 
     // check if local branch exists and if it is updated
     var gitShowLocalOutput : []u8 = undefined;
