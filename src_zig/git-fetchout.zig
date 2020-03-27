@@ -139,13 +139,18 @@ fn main2() !u8 {
 }
 
 fn promptYesNo(prompt: []const u8) !bool {
-    var buffer = try std.Buffer.initSize(allocator, 0);
-    defer buffer.deinit();
+    var answer = std.ArrayList(u8).init(allocator);
+    defer answer.deinit();
     while (true) {
         std.debug.warn("{}[y/n]? ", .{prompt});
-        const answer = try std.io.readLine(&buffer);
-        if (std.mem.eql(u8, answer, "y")) return true;
-        if (std.mem.eql(u8, answer, "n")) return false;
+        //const answer = try std.io.readLine(&buffer);
+        answer.resize(0) catch @panic("codebug");
+        std.io.getStdIn().inStream().readUntilDelimiterArrayList(&answer, '\n', 20) catch |e| switch (e) {
+            error.StreamTooLong => continue,
+            else => return e
+        };
+        if (std.mem.eql(u8, answer.span(), "y")) return true;
+        if (std.mem.eql(u8, answer.span(), "n")) return false;
     }
 }
 
