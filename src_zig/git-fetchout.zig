@@ -8,7 +8,7 @@ const runutil = zog.runutil;
 usingnamespace zog.cmdlinetool;
 
 const gitutil = @import("./gitutil.zig");
-
+const common = @import("./common.zig");
 
 var arena = std.heap.ArenaAllocator.init(std.heap.direct_allocator);
 const allocator = &arena.allocator;
@@ -129,29 +129,13 @@ fn main2() !u8 {
     log("{}", .{gitShowFetchHead});
     log("--------------------------------------------------------------------------------", .{});
 
-    const result = try promptYesNo("Overwrite LOCAL_BRANCH with REMOTE_BRANCH");
+    const result = try common.promptYesNo(allocator, "Overwrite LOCAL_BRANCH with REMOTE_BRANCH");
     if (result) {
         try enforceRunPassed(try run(allocator, .{git, "checkout", "FETCH_HEAD"}));
         try enforceRunPassed(try run(allocator, .{git, "--no-pager", "branch", "-D", branch}));
         try enforceRunPassed(try run(allocator, .{git, "checkout", "-b", branch}));
     }
     return 0;
-}
-
-fn promptYesNo(prompt: []const u8) !bool {
-    var answer = std.ArrayList(u8).init(allocator);
-    defer answer.deinit();
-    while (true) {
-        std.debug.warn("{}[y/n]? ", .{prompt});
-        //const answer = try std.io.readLine(&buffer);
-        answer.resize(0) catch @panic("codebug");
-        std.io.getStdIn().inStream().readUntilDelimiterArrayList(&answer, '\n', 20) catch |e| switch (e) {
-            error.StreamTooLong => continue,
-            else => return e
-        };
-        if (std.mem.eql(u8, answer.span(), "y")) return true;
-        if (std.mem.eql(u8, answer.span(), "n")) return false;
-    }
 }
 
 fn firstLine(str: []const u8) []const u8 {

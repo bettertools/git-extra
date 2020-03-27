@@ -19,6 +19,7 @@ pub fn build(b: *Builder) !void {
     const run_step = b.step("run", "Run the app");
 
     addTool(b, run_step, target, mode, &zogIndexFile, "git-fetchout", "git-fetchout.zig");
+    addTool(b, run_step, target, mode, &zogIndexFile, "git-cleanbranches", "git-cleanbranches.zig");
 }
 
 pub fn joinLen(comptime parts: [][]const u8) usize {
