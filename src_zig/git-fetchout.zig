@@ -9,8 +9,7 @@ usingnamespace zog.cmdlinetool;
 
 const gitutil = @import("./gitutil.zig");
 
-
-var arena = std.heap.ArenaAllocator.init(std.heap.direct_allocator);
+var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 const allocator = &arena.allocator;
 
 fn usage() void {
