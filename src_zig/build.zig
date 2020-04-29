@@ -21,7 +21,7 @@ pub fn build(b: *Builder) !void {
     addTool(b, run_step, target, mode, &zogIndexFile, "git-fetchout", "git-fetchout.zig");
 }
 
-pub fn joinLen(comptime parts: [][]const u8) usize {
+pub fn joinLen(parts: []const []const u8) usize {
     var total : usize = 0;
     for (parts) |part| {
         if (total > 0) { total += 1; }
@@ -30,7 +30,7 @@ pub fn joinLen(comptime parts: [][]const u8) usize {
     return total;
 }
 // TODO: I want something like this from the standard library
-pub fn join(comptime parts: [][]const u8, comptime sep: u8) [joinLen(parts) :0]u8 {
+pub fn join(comptime parts: []const []const u8, comptime sep: u8) [joinLen(parts) :0]u8 {
     comptime const totalLen = joinLen(parts);
     var path : [totalLen :0]u8 = undefined;
     var offset : usize = 0;
@@ -43,7 +43,7 @@ pub fn join(comptime parts: [][]const u8, comptime sep: u8) [joinLen(parts) :0]u
         offset += part.len;
     }
     if (offset != totalLen) @panic("codebug");
-    if (path[totalLen] != 0) @panic("codebug");
+    path[totalLen] = 0;
     return path;
 }
 
