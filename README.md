@@ -34,3 +34,5 @@ Overwrite LOCAL_BRANCH with REMOTE_BRANCH[y/n]?
 ```
 
 This makes it safe to run `git fetchout` at any time without fear of losing any local changes.
+
+TODO: The user should know whether the new branch is going to overwrite any commits on the local branch, or if it is just adding new commits. Something like "Remote Branch will add 3 commits and overwrite 1 commit".
