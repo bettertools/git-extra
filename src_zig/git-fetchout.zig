@@ -144,12 +144,12 @@ fn promptYesNo(prompt: []const u8) !bool {
         std.debug.warn("{}[y/n]? ", .{prompt});
         //const answer = try std.io.readLine(&buffer);
         answer.resize(0) catch @panic("codebug");
-        std.io.getStdIn().inStream().readUntilDelimiterArrayList(&answer, '\n', 20) catch |e| switch (e) {
+        std.io.getStdIn().reader().readUntilDelimiterArrayList(&answer, '\n', 20) catch |e| switch (e) {
             error.StreamTooLong => continue,
             else => return e
         };
-        if (std.mem.eql(u8, answer.span(), "y")) return true;
-        if (std.mem.eql(u8, answer.span(), "n")) return false;
+        if (std.mem.startsWith(u8, answer.span(), "y")) return true;
+        if (std.mem.startsWith(u8, answer.span(), "n")) return false;
     }
 }
 
