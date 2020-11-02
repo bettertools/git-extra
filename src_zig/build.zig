@@ -8,10 +8,10 @@ pub fn build(b: *Builder) !void {
     const zogIndexFile = join(&[_][]const u8 {"..", "..", "zog", "zog.zig"}, std.fs.path.sep);
 
     std.fs.cwd().access(&zogIndexFile, std.fs.File.OpenFlags { .read = true }) catch |err| {
-        std.debug.warn("Error: zog index file '{}' does not exist\n", .{zogIndexFile});
+        std.debug.warn("Error: failed to access zog index file '{}': {}\n", .{zogIndexFile, err});
         std.debug.warn("       have you downloaded the zog library? Run the following to clone it:\n", .{});
         std.debug.warn("       git clone https://github.com/marler8997/zog ../../zog\n", .{});
-        return err;
+        std.os.exit(1);
     };
 
     const target = b.standardTargetOptions(.{});
