@@ -42,7 +42,7 @@ pub fn main() u8 {
         if (err == ErrorReported) {
             return 1;
         }
-        std.debug.warn("error: {}\n", .{@errorName(err)});
+        std.debug.warn("error: {s}\n", .{@errorName(err)});
         return 1;
     };
 }
@@ -60,14 +60,14 @@ fn main2() !u8 {
         var i : usize = 0;
         while (i < args.len) : (i += 1) {
             var arg = args[i];
-            //log("parsing arg '{}'", arg);
+            //log("parsing arg '{s}'", arg);
             if (!std.mem.startsWith(u8, arg, "-")) {
                 args[newArgsLength] = arg;
                 newArgsLength += 1;
             //} else if (arg == "-r" || arg == "--repo") {
             //    repo = getOptionArg(args, &i);
             } else {
-                log("Error: unknown option '{}'", .{arg});
+                log("Error: unknown option '{s}'", .{arg});
                 return 1;
             }
         }
@@ -89,8 +89,8 @@ fn main2() !u8 {
         // NOTE the '--' is to let git know it's a revision, not a filename
         const result = try runGetOutput(allocator, .{git, "show", "-s", branch, "--"});
         if (runutil.runFailed(&result)) {
-            log("    local branch '{}' does not exist", .{branch});
-            const branchArg = try std.fmt.allocPrint(allocator, "{}:{}", .{branch, branch});
+            log("    local branch '{s}' does not exist", .{branch});
+            const branchArg = try std.fmt.allocPrint(allocator, "{s}:{0s}", .{branch});
             try enforceRunPassed(try run(allocator, .{git, "fetch", repo, branchArg}));
             try enforceRunPassed(try run(allocator, .{git, "checkout", branch}));
 
@@ -102,7 +102,7 @@ fn main2() !u8 {
     }
 
     const localBranchInfo = try gitutil.parseGitShow(gitShowLocalOutput);
-    log("    local branch: {}", .{localBranchInfo.sha});
+    log("    local branch: {s}", .{localBranchInfo.sha});
 
     try enforceRunPassed(try run(allocator, .{git, "fetch", repo, branch}));
 
@@ -110,7 +110,7 @@ fn main2() !u8 {
     const gitShowFetchHead = try enforceRunGetOutputPassed(allocator,
         try runGetOutput(allocator, .{git, "show", "-s", "FETCH_HEAD", "--"}));
     const fetchHeadInfo = try gitutil.parseGitShow(gitShowFetchHead);
-    log("    remote branch: {}", .{fetchHeadInfo.sha});
+    log("    remote branch: {s}", .{fetchHeadInfo.sha});
 
     if (std.mem.eql(u8, localBranchInfo.sha, fetchHeadInfo.sha)) {
         log("local branch is already up-to-date", .{});
@@ -121,11 +121,11 @@ fn main2() !u8 {
     log("================================================================================", .{});
     log("LOCAL_BRANCH", .{});
     log("================================================================================", .{});
-    log("{}", .{gitShowLocalOutput});
+    log("{s}", .{gitShowLocalOutput});
     log("================================================================================", .{});
     log("REMOTE_BRANCH", .{});
     log("================================================================================", .{});
-    log("{}", .{gitShowFetchHead});
+    log("{s}", .{gitShowFetchHead});
     log("--------------------------------------------------------------------------------", .{});
 
     const result = try promptYesNo("Overwrite LOCAL_BRANCH with REMOTE_BRANCH");
@@ -141,15 +141,15 @@ fn promptYesNo(prompt: []const u8) !bool {
     var answer = std.ArrayList(u8).init(allocator);
     defer answer.deinit();
     while (true) {
-        std.debug.warn("{}[y/n]? ", .{prompt});
+        std.debug.warn("{s}[y/n]? ", .{prompt});
         //const answer = try std.io.readLine(&buffer);
         answer.resize(0) catch @panic("codebug");
         std.io.getStdIn().reader().readUntilDelimiterArrayList(&answer, '\n', 20) catch |e| switch (e) {
             error.StreamTooLong => continue,
             else => return e
         };
-        if (std.mem.startsWith(u8, answer.span(), "y")) return true;
-        if (std.mem.startsWith(u8, answer.span(), "n")) return false;
+        if (std.mem.startsWith(u8, answer.items, "y")) return true;
+        if (std.mem.startsWith(u8, answer.items, "n")) return false;
     }
 }
 
