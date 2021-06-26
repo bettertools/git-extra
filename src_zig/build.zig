@@ -31,7 +31,7 @@ pub fn joinLen(parts: []const []const u8) usize {
 }
 // TODO: I want something like this from the standard library
 pub fn join(comptime parts: []const []const u8, comptime sep: u8) [joinLen(parts) :0]u8 {
-    comptime const totalLen = joinLen(parts);
+    const totalLen = comptime joinLen(parts);
     var path : [totalLen :0]u8 = undefined;
     var offset : usize = 0;
     inline for (parts) |part| {
