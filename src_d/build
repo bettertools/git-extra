@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-set -ex
-if [ ! -d out ]; then
-   meson out
-fi
-ninja -C out
