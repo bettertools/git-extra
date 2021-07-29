@@ -5,46 +5,17 @@ const CrossTarget = std.zig.CrossTarget;
 const Mode = std.builtin.Mode;
 
 pub fn build(b: *Builder) !void {
-    const zogIndexFile = join(&[_][]const u8 {"..", "..", "zog", "zog.zig"}, std.fs.path.sep);
-
-    std.fs.cwd().access(&zogIndexFile, std.fs.File.OpenFlags { .read = true }) catch |err| {
-        std.debug.warn("Error: failed to access zog index file '{s}': {}\n", .{zogIndexFile, err});
-        std.debug.warn("       have you downloaded the zog library? Run the following to clone it:\n", .{});
-        std.debug.warn("       git clone https://github.com/marler8997/zog ../../zog\n", .{});
-        std.os.exit(1);
-    };
+    const zogIndexFile = try (GitRepo {
+        .url = "https://github.com/marler8997/zog",
+        .branch = null,
+        .sha = @embedFile("zogsha"),
+    }).resolveOneFile(b.allocator, "zog.zig");
 
     const target = b.standardTargetOptions(.{});
     const mode = b.standardReleaseOptions();
     const run_step = b.step("run", "Run the app");
 
-    addTool(b, run_step, target, mode, &zogIndexFile, "git-fetchout", "git-fetchout.zig");
-}
-
-pub fn joinLen(parts: []const []const u8) usize {
-    var total : usize = 0;
-    for (parts) |part| {
-        if (total > 0) { total += 1; }
-        total += part.len;
-    }
-    return total;
-}
-// TODO: I want something like this from the standard library
-pub fn join(comptime parts: []const []const u8, comptime sep: u8) [joinLen(parts) :0]u8 {
-    const totalLen = comptime joinLen(parts);
-    var path : [totalLen :0]u8 = undefined;
-    var offset : usize = 0;
-    inline for (parts) |part| {
-        if (offset > 0) {
-            path[offset] = sep;
-            offset += 1;
-        }
-        std.mem.copy(u8, path[offset..], part);
-        offset += part.len;
-    }
-    if (offset != totalLen) @panic("codebug");
-    path[totalLen] = 0;
-    return path;
+    addTool(b, run_step, target, mode, zogIndexFile, "git-fetchout", "git-fetchout.zig");
 }
 
 fn addTool(b: *Builder, run_step: *Step, target: CrossTarget, mode: Mode,
@@ -62,3 +33,51 @@ fn addTool(b: *Builder, run_step: *Step, target: CrossTarget, mode: Mode,
 
     run_step.dependOn(&run_cmd.step);
 }
+
+pub const GitRepo = struct {
+    url: []const u8,
+    branch: ?[]const u8,
+    sha: []const u8,
+    path: ?[]const u8 = null,
+
+    pub fn defaultReposDir(allocator: *std.mem.Allocator) ![]const u8 {
+        const cwd = try std.process.getCwdAlloc(allocator);
+        defer allocator.free(cwd);
+        return try std.fs.path.join(allocator, &[_][]const u8 { cwd, "dep" });
+    }
+
+    pub fn resolve(self: GitRepo, allocator: *std.mem.Allocator) ![]const u8 {
+        var optional_repos_dir_to_clean: ?[]const u8 = null;
+        defer {
+            if (optional_repos_dir_to_clean) |p| {
+                allocator.free(p);
+            }
+        }
+
+        const path = if (self.path) |p| try allocator.dupe(u8, p) else blk: {
+            const repos_dir = try defaultReposDir(allocator);
+            optional_repos_dir_to_clean = repos_dir;
+            break :blk try std.fs.path.join(allocator, &[_][]const u8{ repos_dir, std.fs.path.basename(self.url) });
+        };
+        errdefer self.allocator.free(path);
+
+        std.fs.accessAbsolute(path, std.fs.File.OpenFlags { .read = true }) catch {
+            std.debug.print("Error: repository '{s}' does not exist\n", .{path});
+            std.debug.print("       Run the following to clone it:\n", .{});
+            const branch_args = if (self.branch) |b| &[2][]const u8 {" -b ", b} else &[2][]const u8 {"", ""};
+            std.debug.print("       git clone {s}{s}{s} {s} && git -C {3s} checkout {s} -b for-git-extra\n",
+                .{self.url, branch_args[0], branch_args[1], path, self.sha});
+            std.os.exit(1);
+        };
+
+        // TODO: check if the SHA matches an print a message and/or warning if it is different
+
+        return path;
+    }
+
+    pub fn resolveOneFile(self: GitRepo, allocator: *std.mem.Allocator, index_sub_path: []const u8) ![]const u8 {
+        const repo_path = try self.resolve(allocator);
+        defer allocator.free(repo_path);
+        return try std.fs.path.join(allocator, &[_][]const u8 { repo_path, index_sub_path });
+    }
+};
