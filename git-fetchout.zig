@@ -5,16 +5,23 @@ const zog = @import("zog");
 const varargs = zog.varargs;
 const appendlib = zog.appendlib;
 const runutil = zog.runutil;
-usingnamespace zog.cmdlinetool;
+
+const cmdlinetool = zog.cmdlinetool;
+const log = cmdlinetool.log;
+const ErrorReported = cmdlinetool.ErrorReported;
 
 const gitutil = @import("./gitutil.zig");
 
 var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
-const allocator = &arena.allocator;
+const allocator = arena.allocator();
 
 fn usage() void {
-    log("Usage:", .{});
-    log("    git fetchout <repo> <branch>", .{});
+    log(
+        \\Usage:
+        \\ git fetchout <repo> <branch>
+        \\
+        , .{}
+    );
 }
 
 fn help() void {
@@ -42,7 +49,7 @@ pub fn main() u8 {
         if (err == ErrorReported) {
             return 1;
         }
-        std.debug.warn("error: {s}\n", .{@errorName(err)});
+        std.debug.print("error: {s}\n", .{@errorName(err)});
         return 1;
     };
 }
@@ -87,15 +94,15 @@ fn main2() !u8 {
     var gitShowLocalOutput : []u8 = undefined;
     {
         // NOTE the '--' is to let git know it's a revision, not a filename
-        const result = try runGetOutput(allocator, .{git, "show", "-s", branch, "--"});
+        const result = try cmdlinetool.runGetOutput(allocator, .{git, "show", "-s", branch, "--"});
         if (runutil.runFailed(&result)) {
             log("    local branch '{s}' does not exist", .{branch});
             const branchArg = try std.fmt.allocPrint(allocator, "{s}:{0s}", .{branch});
-            try enforceRunPassed(try run(allocator, .{git, "fetch", repo, branchArg}));
-            try enforceRunPassed(try run(allocator, .{git, "checkout", branch}));
+            try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "fetch", repo, branchArg}));
+            try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "checkout", branch}));
 
             // NOTE the '--' is to let git know it's a revision, not a filename
-            try enforceRunPassed(try run(allocator, .{git, "--no-pager", "show", "-s", "HEAD", "--"}));
+            try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "--no-pager", "show", "-s", "HEAD", "--"}));
             return 0;
         }
         gitShowLocalOutput = try runutil.runCombineOutput(allocator, &result);
@@ -104,17 +111,17 @@ fn main2() !u8 {
     const localBranchInfo = try gitutil.parseGitShow(gitShowLocalOutput);
     log("    local branch: {s}", .{localBranchInfo.sha});
 
-    try enforceRunPassed(try run(allocator, .{git, "fetch", repo, branch}));
+    try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "fetch", repo, branch}));
 
     // NOTE the '--' is to let git know it's a revision, not a filename
-    const gitShowFetchHead = try enforceRunGetOutputPassed(allocator,
-        try runGetOutput(allocator, .{git, "show", "-s", "FETCH_HEAD", "--"}));
+    const gitShowFetchHead = try cmdlinetool.enforceRunGetOutputPassed(allocator,
+        try cmdlinetool.runGetOutput(allocator, .{git, "show", "-s", "FETCH_HEAD", "--"}));
     const fetchHeadInfo = try gitutil.parseGitShow(gitShowFetchHead);
     log("    remote branch: {s}", .{fetchHeadInfo.sha});
 
     if (std.mem.eql(u8, localBranchInfo.sha, fetchHeadInfo.sha)) {
         log("local branch is already up-to-date", .{});
-        try enforceRunPassed(try run(allocator, .{git, "checkout", branch}));
+        try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "checkout", branch}));
         return 0;
     }
 
@@ -130,9 +137,9 @@ fn main2() !u8 {
 
     const result = try promptYesNo("Overwrite LOCAL_BRANCH with REMOTE_BRANCH");
     if (result) {
-        try enforceRunPassed(try run(allocator, .{git, "checkout", "FETCH_HEAD"}));
-        try enforceRunPassed(try run(allocator, .{git, "--no-pager", "branch", "-D", branch}));
-        try enforceRunPassed(try run(allocator, .{git, "checkout", "-b", branch}));
+        try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "checkout", "FETCH_HEAD"}));
+        try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "--no-pager", "branch", "-D", branch}));
+        try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "checkout", "-b", branch}));
     }
     return 0;
 }
@@ -141,7 +148,7 @@ fn promptYesNo(prompt: []const u8) !bool {
     var answer = std.ArrayList(u8).init(allocator);
     defer answer.deinit();
     while (true) {
-        std.debug.warn("{s}[y/n]? ", .{prompt});
+        std.debug.print("{s}[y/n]? ", .{prompt});
         //const answer = try std.io.readLine(&buffer);
         answer.resize(0) catch @panic("codebug");
         std.io.getStdIn().reader().readUntilDelimiterArrayList(&answer, '\n', 20) catch |e| switch (e) {
