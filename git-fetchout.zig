@@ -44,6 +44,14 @@ const LocalError = error {
     ProcessFailed,
 };
 
+// make sure sha's are all 40-character hex strings so they can be compared
+fn enforceSha(name: []const u8, val: []const u8) void {
+    if (val.len != 40) {
+        log("Error: {s} '{s}' is not a 40 character hex SHA", .{name, val});
+        std.os.exit(0xff);
+    }
+}
+
 pub fn main() u8 {
     return main2() catch |err| {
         if (err == ErrorReported) {
@@ -92,8 +100,7 @@ fn main2() !u8 {
     const git = "git";
 
     // check if local branch exists and if it is updated
-    var gitShowLocalOutput : []u8 = undefined;
-    {
+    const gitShowLocalOutput : []u8 = blk: {
         // NOTE the '--' is to let git know it's a revision, not a filename
         const result = try cmdlinetool.runGetOutput(allocator, .{git, "show", "-s", branch, "--"});
         if (runutil.runFailed(&result)) {
@@ -106,10 +113,11 @@ fn main2() !u8 {
             try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "--no-pager", "show", "-s", "HEAD", "--"}));
             return 0;
         }
-        gitShowLocalOutput = try runutil.runCombineOutput(allocator, &result);
-    }
+        break :blk try runutil.runCombineOutput(allocator, &result);
+    };
 
     const localBranchInfo = try gitutil.parseGitShow(gitShowLocalOutput);
+    enforceSha("local branch", localBranchInfo.sha);
     log("    local branch: {s}", .{localBranchInfo.sha});
 
     try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "fetch", repo, branch}));
@@ -118,6 +126,7 @@ fn main2() !u8 {
     const gitShowFetchHead = try cmdlinetool.enforceRunGetOutputPassed(allocator,
         try cmdlinetool.runGetOutput(allocator, .{git, "show", "-s", "FETCH_HEAD", "--"}));
     const fetchHeadInfo = try gitutil.parseGitShow(gitShowFetchHead);
+    enforceSha("remote branch", fetchHeadInfo.sha);
     log("    remote branch: {s}", .{fetchHeadInfo.sha});
 
     if (std.mem.eql(u8, localBranchInfo.sha, fetchHeadInfo.sha)) {
@@ -126,22 +135,41 @@ fn main2() !u8 {
         return 0;
     }
 
-    log("================================================================================", .{});
-    log("LOCAL_BRANCH", .{});
-    log("================================================================================", .{});
-    log("{s}", .{gitShowLocalOutput});
-    log("================================================================================", .{});
-    log("REMOTE_BRANCH", .{});
-    log("================================================================================", .{});
-    log("{s}", .{gitShowFetchHead});
-    log("--------------------------------------------------------------------------------", .{});
+    // check if local branch will be overwritten or if it's just an update
+    const merge_base_raw = try cmdlinetool.enforceRunGetOutputPassed(allocator,
+        try cmdlinetool.runGetOutputArray(allocator, &[_][]const u8{git, "merge-base", branch, "FETCH_HEAD"}));
+    const merge_base = std.mem.trimRight(u8, merge_base_raw, "\r\n");
+    enforceSha("merge base", merge_base);
 
-    const result = try promptYesNo("Overwrite LOCAL_BRANCH with REMOTE_BRANCH");
-    if (result) {
-        try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "checkout", "FETCH_HEAD"}));
-        try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "--no-pager", "branch", "-D", branch}));
-        try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "checkout", "-b", branch}));
+    const is_normal_update = std.mem.eql(u8, merge_base, localBranchInfo.sha);
+    if (is_normal_update) {
+        log("remote branch is a normal update, no need to prompt user", .{});
+    } else {
+        log("================================================================================", .{});
+        log("LOCAL_BRANCH", .{});
+        log("================================================================================", .{});
+        log("{s}", .{gitShowLocalOutput});
+        log("================================================================================", .{});
+        log("REMOTE_BRANCH", .{});
+        log("================================================================================", .{});
+        log("{s}", .{gitShowFetchHead});
+        log("--------------------------------------------------------------------------------", .{});
+
+        const yes = try promptYesNo("Overwrite LOCAL_BRANCH with REMOTE_BRANCH");
+        if (!yes) {
+            return 0xff;
+        }
     }
+    try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "checkout", "FETCH_HEAD"}));
+    try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "--no-pager", "branch", "-D", branch}));
+    try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "checkout", "-b", branch}));
+
+    if (is_normal_update) {
+        log("Succesfully updated from {s} to {s}", .{localBranchInfo.sha, fetchHeadInfo.sha});
+    } else {
+        log("Succesfully overwrote local branch {s} with {s}", .{localBranchInfo.sha, fetchHeadInfo.sha});
+    }
+
     return 0;
 }
 
