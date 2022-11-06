@@ -54,23 +54,22 @@ pub fn main() u8 {
     };
 }
 fn main2() !u8 {
-    var args = try std.process.argsAlloc(allocator);
-    if (args.len <= 1) {
+    const args_with_exe = try std.process.argsAlloc(allocator);
+    if (args_with_exe.len <= 1) {
         help();
         return 1; // error exit code
     }
-    args = args[1..];
 
-    {
-        var newArgsLength : usize = 0;
-        defer args.len = newArgsLength;
+    const args = blk: {
+        var args_len: usize = 0;
+        const args_no_exe = args_with_exe[1..];
         var i : usize = 0;
-        while (i < args.len) : (i += 1) {
-            var arg = args[i];
+        while (i < args_no_exe.len) : (i += 1) {
+            const arg = args_no_exe[i];
             //log("parsing arg '{s}'", arg);
             if (!std.mem.startsWith(u8, arg, "-")) {
-                args[newArgsLength] = arg;
-                newArgsLength += 1;
+                args_no_exe[args_len] = arg;
+                args_len += 1;
             //} else if (arg == "-r" || arg == "--repo") {
             //    repo = getOptionArg(args, &i);
             } else {
@@ -78,7 +77,9 @@ fn main2() !u8 {
                 return 1;
             }
         }
-    }
+        break :blk args_no_exe[0 .. args_len];
+    };
+
     if (args.len != 2) {
         log("Error: 'git fetchout' requires 2 arguments but got {}", .{args.len});
         usage();
