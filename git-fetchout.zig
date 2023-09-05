@@ -2,8 +2,6 @@ const builtin = @import("builtin");
 const std = @import("std");
 
 const zog = @import("zog");
-const varargs = zog.varargs;
-const appendlib = zog.appendlib;
 const runutil = zog.runutil;
 
 const cmdlinetool = zog.cmdlinetool;
