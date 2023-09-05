@@ -14,32 +14,31 @@ pub fn build(b: *Builder) !void {
     });
 
     const target = b.standardTargetOptions(.{});
-    const mode = b.standardReleaseOptions();
-    const run_step = b.step("run", "Run the app");
+    const optimize = b.standardOptimizeOption(.{});
 
-    addTool(b, run_step, target, mode, zog_repo, "git-fetchout", "git-fetchout.zig");
+    addTool(b, target, optimize, zog_repo, "git-fetchout.zig");
 }
 
 fn addTool(
     b: *Builder,
-    run_step: *Step,
     target: CrossTarget,
-    mode: Mode,
+    optimize: Mode,
     zog_repo: *GitRepoStep,
-    name: []const u8,
     src: []const u8,
 ) void {
 
-    const exe = b.addExecutable(name, src);
-    exe.single_threaded = true;
-    exe.setTarget(target);
-    exe.setBuildMode(mode);
+    const exe = b.addExecutable(.{
+        .name = std.fs.path.stem(src),
+        .root_source_file = .{ .path = src },
+        .target = target,
+        .optimize = optimize,
+        .single_threaded = true,
+    });
     exe.step.dependOn(&zog_repo.step);
-    exe.addPackagePath("zog", b.pathJoin(&.{zog_repo.getPath(&exe.step), "zog.zig"}));
-    exe.install();
 
-    const run_cmd = exe.run();
-    run_cmd.step.dependOn(b.getInstallStep());
-
-    run_step.dependOn(&run_cmd.step);
+    const zog_mod = b.createModule(.{
+        .source_file = .{ .path = b.pathJoin(&.{zog_repo.getPath(&exe.step), "zog.zig"}) },
+    });
+    exe.addModule("zog", zog_mod);
+    b.installArtifact(exe);
 }
