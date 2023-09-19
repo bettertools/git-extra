@@ -97,10 +97,14 @@ fn main2() !u8 {
 
     const git = "git";
 
+    const git_show_format = "--format=commit %H%nCommitter Date: %cd%n%n%s%n%n%b";
+
     // check if local branch exists and if it is updated
     const gitShowLocalOutput : []u8 = blk: {
         // NOTE the '--' is to let git know it's a revision, not a filename
-        const result = try cmdlinetool.runGetOutput(allocator, .{git, "show", "-s", branch, "--"});
+        const result = try cmdlinetool.runGetOutput(allocator, .{
+            git, "show", "--no-patch", git_show_format, branch, "--"
+        });
         if (runutil.runFailed(&result)) {
             log("    local branch '{s}' does not exist", .{branch});
             const branchArg = try std.fmt.allocPrint(allocator, "{s}:{0s}", .{branch});
@@ -108,7 +112,9 @@ fn main2() !u8 {
             try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "checkout", branch}));
 
             // NOTE the '--' is to let git know it's a revision, not a filename
-            try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "--no-pager", "show", "-s", "HEAD", "--"}));
+            try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{
+                git, "--no-pager", "show", "--no-patch", git_show_format, "HEAD", "--"
+            }));
             return 0;
         }
         break :blk try runutil.runCombineOutput(allocator, &result);
@@ -121,8 +127,12 @@ fn main2() !u8 {
     try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "fetch", repo, branch}));
 
     // NOTE the '--' is to let git know it's a revision, not a filename
-    const gitShowFetchHead = try cmdlinetool.enforceRunGetOutputPassed(allocator,
-        try cmdlinetool.runGetOutput(allocator, .{git, "show", "-s", "FETCH_HEAD", "--"}));
+    const gitShowFetchHead = try cmdlinetool.enforceRunGetOutputPassed(
+        allocator,
+        try cmdlinetool.runGetOutput(allocator, .{
+            git, "show", "--no-patch", git_show_format, "FETCH_HEAD", "--"
+        }),
+    );
     const fetchHeadInfo = try gitutil.parseGitShow(gitShowFetchHead);
     enforceSha("remote branch", fetchHeadInfo.sha);
     log("    remote branch: {s}", .{fetchHeadInfo.sha});
