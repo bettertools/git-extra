@@ -100,7 +100,7 @@ fn main2() !u8 {
     const git_show_format = "--format=commit %H%nCommitter Date: %cd%n%n%s%n%n%b";
 
     // check if local branch exists and if it is updated
-    const gitShowLocalOutput : []u8 = blk: {
+    const gitShowLocalOutputRaw : []u8 = blk: {
         // NOTE the '--' is to let git know it's a revision, not a filename
         const result = try cmdlinetool.runGetOutput(allocator, .{
             git, "show", "--no-patch", git_show_format, branch, "--"
@@ -119,6 +119,7 @@ fn main2() !u8 {
         }
         break :blk try runutil.runCombineOutput(allocator, &result);
     };
+    const gitShowLocalOutput = std.mem.trimRight(u8, gitShowLocalOutputRaw, "\r\n");
 
     const localBranchInfo = try gitutil.parseGitShow(gitShowLocalOutput);
     enforceSha("local branch", localBranchInfo.sha);
@@ -127,12 +128,13 @@ fn main2() !u8 {
     try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "fetch", repo, branch}));
 
     // NOTE the '--' is to let git know it's a revision, not a filename
-    const gitShowFetchHead = try cmdlinetool.enforceRunGetOutputPassed(
+    const gitShowFetchHeadRaw = try cmdlinetool.enforceRunGetOutputPassed(
         allocator,
         try cmdlinetool.runGetOutput(allocator, .{
             git, "show", "--no-patch", git_show_format, "FETCH_HEAD", "--"
         }),
     );
+    const gitShowFetchHead = std.mem.trimRight(u8, gitShowFetchHeadRaw, "\r\n");
     const fetchHeadInfo = try gitutil.parseGitShow(gitShowFetchHead);
     enforceSha("remote branch", fetchHeadInfo.sha);
     log("    remote branch: {s}", .{fetchHeadInfo.sha});

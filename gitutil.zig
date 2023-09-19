@@ -4,10 +4,10 @@ const zog = @import("zog");
 const cmdlinetool = zog.cmdlinetool;
 
 const GitShowInfo = struct {
-    sha : []u8,
+    sha : []const u8,
 };
 
-pub fn parseGitShow(output: []u8) !GitShowInfo {
+pub fn parseGitShow(output: []const u8) !GitShowInfo {
     const CommitPrefix = "commit ";
     if (!std.mem.startsWith(u8, output, CommitPrefix)) {
         cmdlinetool.log("Error: expected `git show` output to start with \"{s}\" but it didn't:", .{CommitPrefix});
