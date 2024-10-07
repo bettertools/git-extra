@@ -1,12 +1,6 @@
 const std = @import("std");
-const Builder = std.build.Builder;
-const Step = std.build.Step;
-const CrossTarget = std.zig.CrossTarget;
-const Mode = std.builtin.Mode;
 
-const GitRepoStep = @import("GitRepoStep.zig");
-
-pub fn build(b: *Builder) !void {
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -15,14 +9,14 @@ pub fn build(b: *Builder) !void {
 }
 
 fn addTool(
-    b: *Builder,
-    target: CrossTarget,
-    optimize: Mode,
+    b: *std.Build,
+    target: std.Build.ResolvedTarget,
+    optimize: std.builtin.OptimizeMode,
     src: []const u8,
 ) void {
     const exe = b.addExecutable(.{
         .name = std.fs.path.stem(src),
-        .root_source_file = .{ .path = src },
+        .root_source_file = b.path(src),
         .target = target,
         .optimize = optimize,
         .single_threaded = true,

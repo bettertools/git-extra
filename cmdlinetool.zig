@@ -6,7 +6,7 @@ const std = @import("std");
 const runutil = @import("zogrunutil.zig");
 
 fn logRun(allocator: std.mem.Allocator, argv: []const []const u8) !void {
-    var buffer = try allocator.alloc(u8, runutil.getCommandStringLength(argv));
+    const buffer = try allocator.alloc(u8, runutil.getCommandStringLength(argv));
     defer allocator.free(buffer);
     runutil.writeCommandString(buffer.ptr, argv);
     try std.io.getStdErr().writer().print("[RUN] {s}\n", .{buffer});
@@ -15,9 +15,9 @@ fn logRun(allocator: std.mem.Allocator, argv: []const []const u8) !void {
 pub fn runGetOutput(
     allocator: std.mem.Allocator,
     argv: []const []const u8,
-) !std.ChildProcess.ExecResult {
+) !std.process.Child.RunResult {
     try logRun(allocator, argv);
-    return std.ChildProcess.exec(.{
+    return std.process.Child.run(.{
         .allocator = allocator,
         .argv = argv,
         .cwd = null,
@@ -30,13 +30,13 @@ pub fn runGetOutput(
     };
 }
 
-pub fn run(allocator: std.mem.Allocator, argv: []const []const u8) !std.ChildProcess.Term {
+pub fn run(allocator: std.mem.Allocator, argv: []const []const u8) !std.process.Child.Term {
     try logRun(allocator, argv);
-    var proc = std.ChildProcess.init(argv, allocator);
+    var proc = std.process.Child.init(argv, allocator);
     return proc.spawnAndWait();
 }
 
-pub fn dumpExecResult(result: std.ChildProcess.ExecResult) !bool {
+pub fn dumpRunResult(result: std.process.Child.RunResult) !bool {
     var hasOutput = false;
     if (result.stdout.len > 0) {
         hasOutput = true;
@@ -49,18 +49,18 @@ pub fn dumpExecResult(result: std.ChildProcess.ExecResult) !bool {
     return hasOutput;
 }
 
-pub fn enforceRunGetOutputPassed(allocator: std.mem.Allocator, result: std.ChildProcess.ExecResult) ![]u8 {
+pub fn enforceRunGetOutputPassed(allocator: std.mem.Allocator, result: std.process.Child.RunResult) ![]u8 {
     switch (result.term) {
         .Exited => {
             if (result.term.Exited != 0) {
-                if (!try dumpExecResult(result)) {
+                if (!try dumpRunResult(result)) {
                     std.log.err("last process exited with code {}", .{result.term.Exited});
                 }
                 return error.AlreadyReported;
             }
         },
         else => {
-            if (!try dumpExecResult(result)) {
+            if (!try dumpRunResult(result)) {
                 std.log.err("last process failed with {}", .{result.term});
             }
             return error.AlreadyReported;
@@ -69,7 +69,7 @@ pub fn enforceRunGetOutputPassed(allocator: std.mem.Allocator, result: std.Child
     return runutil.runCombineOutput(allocator, &result);
 }
 
-pub fn enforceRunPassed(term: std.ChildProcess.Term) error{AlreadyReported}!void {
+pub fn enforceRunPassed(term: std.process.Child.Term) error{AlreadyReported}!void {
     switch (term) {
         .Exited => {
             if (term.Exited != 0) {

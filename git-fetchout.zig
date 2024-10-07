@@ -49,7 +49,7 @@ const LocalError = error {
 fn enforceSha(name: []const u8, val: []const u8) void {
     if (val.len != 40) {
         std.log.err("{s} '{s}' is not a 40 character hex SHA", .{name, val});
-        std.os.exit(0xff);
+        std.process.exit(0xff);
     }
 }
 

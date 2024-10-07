@@ -2,8 +2,8 @@ const builtin = @import("builtin");
 const std = @import("std");
 const runutil = @import("runutil.zig");
 
-pub const std_options = struct {
-    pub const log_level = .info;
+pub const std_options: std.Options = .{
+    .log_level = .info,
 };
 
 var arena_instance = std.heap.ArenaAllocator.init(std.heap.page_allocator);
@@ -27,7 +27,7 @@ pub fn cmdlineArgs() [][*:0]u8 {
     if (builtin.os.tag == .windows) {
         const slices = std.process.argsAlloc(windows_args_arena.allocator()) catch |err| switch (err) {
             error.OutOfMemory => oom(error.OutOfMemory),
-            error.InvalidCmdLine => @panic("InvalidCmdLine"),
+            //error.InvalidCmdLine => @panic("InvalidCmdLine"),
             error.Overflow => @panic("Overflow while parsing command line"),
         };
         const args = windows_args_arena.allocator().alloc([*:0]u8, slices.len - 1) catch |e| oom(e);
@@ -48,18 +48,18 @@ fn getSha(refspec: []const u8) ![]const u8 {
         });
         if (!result.passed())
             // git should have already logged an error
-            std.os.exit(0x7f);
+            std.process.exit(0x7f);
         break :blk std.mem.trimRight(u8, result.stdout, &std.ascii.whitespace);
     };
     if (sha.len != 40) {
         std.log.err("invalid sha '{s}', expected 40 hex digits but got {}", .{sha, sha.len});
-        std.os.exit(0x7f);
+        std.process.exit(0x7f);
     }
     return sha;
 }
 
 const refs_heads = "refs/heads/";
-    
+
 pub fn main() !u8 {
     const args = cmdlineArgs();
     if (args.len == 0) {
@@ -104,7 +104,7 @@ fn onRefsLine(
     const ref = std.mem.trimRight(u8, refs_line, &std.ascii.whitespace);
     if (!std.mem.startsWith(u8, ref, refs_heads)) {
         std.log.err("expected each line of git for-each-ref to start with '{s}' but got '{s}'", .{refs_heads, ref});
-        std.os.exit(0x7f);
+        std.process.exit(0x7f);
     }
     const name = ref[refs_heads.len..];
     if (std.mem.eql(u8, name, against_refspec))

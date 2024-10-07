@@ -25,7 +25,7 @@ pub fn writeCommandString(buf: [*]u8, argv: []const []const u8) void {
     }
 }
 
-pub fn runPassed(result: *const std.ChildProcess.ExecResult) bool {
+pub fn runPassed(result: *const std.process.Child.RunResult) bool {
     switch (result.term) {
         .Exited => {
             return result.term.Exited == 0;
@@ -35,19 +35,19 @@ pub fn runPassed(result: *const std.ChildProcess.ExecResult) bool {
         }
     }
 }
-pub fn runFailed(result: *const std.ChildProcess.ExecResult) bool {
+pub fn runFailed(result: *const std.process.Child.RunResult) bool {
     return !runPassed(result);
 }
 
-pub fn runCombineOutput(allocator: std.mem.Allocator, result: *const std.ChildProcess.ExecResult) ![]u8 {
+pub fn runCombineOutput(allocator: std.mem.Allocator, result: *const std.process.Child.RunResult) ![]u8 {
     if (result.stderr.len == 0) {
         return result.stdout;
     }
     if (result.stdout.len == 0) {
         return result.stderr;
     }
-    var combined = try allocator.alloc(u8, result.stdout.len + result.stderr.len);
-    std.mem.copy(u8, combined                     , result.stdout);
-    std.mem.copy(u8, combined[result.stdout.len..], result.stderr);
+    const combined = try allocator.alloc(u8, result.stdout.len + result.stderr.len);
+    @memcpy(combined, result.stdout);
+    @memcpy(combined[result.stdout.len..], result.stderr);
     return combined;
 }
