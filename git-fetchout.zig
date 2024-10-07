@@ -1,40 +1,43 @@
 const builtin = @import("builtin");
 const std = @import("std");
 
-const zog = @import("zog");
-const runutil = zog.runutil;
+const runutil = @import("zogrunutil.zig");
 
-const cmdlinetool = zog.cmdlinetool;
-const log = cmdlinetool.log;
-const ErrorReported = cmdlinetool.ErrorReported;
+const cmdlinetool = @import("cmdlinetool.zig");
 
 const gitutil = @import("./gitutil.zig");
 
 var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 const allocator = arena.allocator();
 
-fn usage() void {
-    log(
+fn usage() !void {
+    try std.io.getStdErr().writer().writeAll(
         \\Usage:
         \\ git fetchout <repo> <branch>
         \\
-        , .{}
     );
 }
 
-fn help() void {
-    usage();
-    log(
-    \\
-    \\This command fetches a remote branch and checks it out.
-    \\If a local branch with the same name already exists, it will
-    \\prompt the user to overwrite the local branch.
-    , .{});
+fn help() !void {
+    try usage();
+    try std.io.getStdErr().writer().writeAll(
+        \\
+        \\This command fetches a remote branch and checks it out.
+        \\If a local branch with the same name already exists, it will
+        \\prompt the user to overwrite the local branch.
+        \\
+    );
     //writeln("Note: this is equivalent to:");
     //writeln("    1. git fetch <repo> <branch>");
     //writeln("    2. git checkout FETCH_HEAD");
     //writeln("    3. git branch -D <branch>");
     //writeln("    4. git checkout -b <branch>");
+}
+
+fn log(comptime fmt: []const u8, args: anytype) void {
+    std.io.getStdErr().writer().print(fmt ++ "\n", args) catch |err| std.debug.panic(
+        "write to stderr failed with {s}", .{@errorName(err)}
+    );
 }
 
 const LocalError = error {
@@ -45,14 +48,14 @@ const LocalError = error {
 // make sure sha's are all 40-character hex strings so they can be compared
 fn enforceSha(name: []const u8, val: []const u8) void {
     if (val.len != 40) {
-        log("Error: {s} '{s}' is not a 40 character hex SHA", .{name, val});
+        std.log.err("{s} '{s}' is not a 40 character hex SHA", .{name, val});
         std.os.exit(0xff);
     }
 }
 
 pub fn main() u8 {
     return main2() catch |err| {
-        if (err == ErrorReported) {
+        if (err == error.AlreadyReported) {
             return 1;
         }
         std.debug.print("error: {s}\n", .{@errorName(err)});
@@ -62,7 +65,7 @@ pub fn main() u8 {
 fn main2() !u8 {
     const args_with_exe = try std.process.argsAlloc(allocator);
     if (args_with_exe.len <= 1) {
-        help();
+        try help();
         return 1; // error exit code
     }
 
@@ -79,7 +82,7 @@ fn main2() !u8 {
             //} else if (arg == "-r" || arg == "--repo") {
             //    repo = getOptionArg(args, &i);
             } else {
-                log("Error: unknown option '{s}'", .{arg});
+                std.log.err("unknown option '{s}'", .{arg});
                 return 1;
             }
         }
@@ -87,8 +90,8 @@ fn main2() !u8 {
     };
 
     if (args.len != 2) {
-        log("Error: 'git fetchout' requires 2 arguments but got {}", .{args.len});
-        usage();
+        std.log.err("'git fetchout' requires 2 arguments but got {}", .{args.len});
+        try usage();
         return 1;
     }
 
@@ -102,17 +105,17 @@ fn main2() !u8 {
     // check if local branch exists and if it is updated
     const gitShowLocalOutputRaw : []u8 = blk: {
         // NOTE the '--' is to let git know it's a revision, not a filename
-        const result = try cmdlinetool.runGetOutput(allocator, .{
+        const result = try cmdlinetool.runGetOutput(allocator, &.{
             git, "show", "--no-patch", git_show_format, branch, "--"
         });
         if (runutil.runFailed(&result)) {
             log("    local branch '{s}' does not exist", .{branch});
             const branchArg = try std.fmt.allocPrint(allocator, "{s}:{0s}", .{branch});
-            try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "fetch", repo, branchArg}));
-            try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "checkout", branch}));
+            try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, &.{git, "fetch", repo, branchArg}));
+            try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, &.{git, "checkout", branch}));
 
             // NOTE the '--' is to let git know it's a revision, not a filename
-            try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{
+            try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, &.{
                 git, "--no-pager", "show", "--no-patch", git_show_format, "HEAD", "--"
             }));
             return 0;
@@ -125,12 +128,12 @@ fn main2() !u8 {
     enforceSha("local branch", localBranchInfo.sha);
     log("    local branch: {s}", .{localBranchInfo.sha});
 
-    try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "fetch", repo, branch}));
+    try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, &.{git, "fetch", repo, branch}));
 
     // NOTE the '--' is to let git know it's a revision, not a filename
     const gitShowFetchHeadRaw = try cmdlinetool.enforceRunGetOutputPassed(
         allocator,
-        try cmdlinetool.runGetOutput(allocator, .{
+        try cmdlinetool.runGetOutput(allocator, &.{
             git, "show", "--no-patch", git_show_format, "FETCH_HEAD", "--"
         }),
     );
@@ -141,13 +144,13 @@ fn main2() !u8 {
 
     if (std.mem.eql(u8, localBranchInfo.sha, fetchHeadInfo.sha)) {
         log("local branch is already up-to-date", .{});
-        try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "checkout", branch}));
+        try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, &.{git, "checkout", branch}));
         return 0;
     }
 
     // check if local branch will be overwritten or if it's just an update
     const merge_base_raw = try cmdlinetool.enforceRunGetOutputPassed(allocator,
-        try cmdlinetool.runGetOutputArray(allocator, &[_][]const u8{git, "merge-base", branch, "FETCH_HEAD"}));
+        try cmdlinetool.runGetOutput(allocator, &.{git, "merge-base", branch, "FETCH_HEAD"}));
     const merge_base = std.mem.trimRight(u8, merge_base_raw, "\r\n");
     enforceSha("merge base", merge_base);
 
@@ -170,9 +173,9 @@ fn main2() !u8 {
             return 0xff;
         }
     }
-    try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "checkout", "FETCH_HEAD"}));
-    try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "--no-pager", "branch", "-D", branch}));
-    try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, .{git, "checkout", "-b", branch}));
+    try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, &.{git, "checkout", "FETCH_HEAD"}));
+    try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, &.{git, "--no-pager", "branch", "-D", branch}));
+    try cmdlinetool.enforceRunPassed(try cmdlinetool.run(allocator, &.{git, "checkout", "-b", branch}));
 
     if (is_normal_update) {
         log("Succesfully updated from {s} to {s}", .{localBranchInfo.sha, fetchHeadInfo.sha});
