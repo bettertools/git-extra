@@ -90,7 +90,7 @@ pub fn main() !u8 {
     };
 
     {
-        var it = std.mem.split(u8, refs_stdout, "\n");
+        var it = std.mem.splitScalar(u8, refs_stdout, '\n');
         while (it.next()) |refs_line| {
             try onRefsLine(against_refspec, against_sha, refs_line);
         }
