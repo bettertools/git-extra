@@ -22,7 +22,9 @@ fn usage() !void {
 }
 
 var windows_args_arena = if (builtin.os.tag == .windows)
-    std.heap.ArenaAllocator.init(std.heap.page_allocator) else struct{}{};
+    std.heap.ArenaAllocator.init(std.heap.page_allocator)
+else
+    struct {}{};
 pub fn cmdlineArgs() [][*:0]u8 {
     if (builtin.os.tag == .windows) {
         const slices = std.process.argsAlloc(windows_args_arena.allocator()) catch |err| switch (err) {
@@ -36,7 +38,7 @@ pub fn cmdlineArgs() [][*:0]u8 {
         }
         return args;
     }
-    return std.os.argv.ptr[1 .. std.os.argv.len];
+    return std.os.argv.ptr[1..std.os.argv.len];
 }
 
 fn getSha(refspec: []const u8) ![]const u8 {
@@ -52,7 +54,7 @@ fn getSha(refspec: []const u8) ![]const u8 {
         break :blk std.mem.trimRight(u8, result.stdout, &std.ascii.whitespace);
     };
     if (sha.len != 40) {
-        std.log.err("invalid sha '{s}', expected 40 hex digits but got {}", .{sha, sha.len});
+        std.log.err("invalid sha '{s}', expected 40 hex digits but got {}", .{ sha, sha.len });
         std.process.exit(0x7f);
     }
     return sha;
@@ -103,14 +105,14 @@ fn onRefsLine(
 ) !void {
     const ref = std.mem.trimRight(u8, refs_line, &std.ascii.whitespace);
     if (!std.mem.startsWith(u8, ref, refs_heads)) {
-        std.log.err("expected each line of git for-each-ref to start with '{s}' but got '{s}'", .{refs_heads, ref});
+        std.log.err("expected each line of git for-each-ref to start with '{s}' but got '{s}'", .{ refs_heads, ref });
         std.process.exit(0x7f);
     }
     const name = ref[refs_heads.len..];
     if (std.mem.eql(u8, name, against_refspec))
         return;
     const branch_sha = try getSha(ref);
-    std.log.debug("{s}: {s}", .{name, branch_sha});
+    std.log.debug("{s}: {s}", .{ name, branch_sha });
     const is_ancestor_result = try runutil.runGetStdout(arena, &.{
         "git",
         "merge-base",

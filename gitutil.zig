@@ -3,7 +3,7 @@ const std = @import("std");
 const cmdlinetool = @import("cmdlinetool.zig");
 
 const GitShowInfo = struct {
-    sha : []const u8,
+    sha: []const u8,
 };
 
 pub fn parseGitShow(output: []const u8) !GitShowInfo {
@@ -20,6 +20,8 @@ pub fn parseGitShow(output: []const u8) !GitShowInfo {
         try std.io.getStdErr().writer().writeAll(output);
         return error.AlreadyReported;
     } else {
-        return GitShowInfo { .sha = sha[0 .. shaEnd.?], };
+        return GitShowInfo{
+            .sha = sha[0..shaEnd.?],
+        };
     }
 }

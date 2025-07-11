@@ -23,7 +23,9 @@ const ArgsFormatter = struct {
 pub const RunGetStdout = struct {
     term: std.process.Child.Term,
     stdout: []u8,
-    pub fn passed(self: RunGetStdout) bool { return termPassed(self.term); }
+    pub fn passed(self: RunGetStdout) bool {
+        return termPassed(self.term);
+    }
 };
 pub fn runGetStdout(allocator: std.mem.Allocator, argv: []const []const u8) !RunGetStdout {
     std.log.debug("[RUN] {}", .{ArgsFormatter{ .args = argv }});

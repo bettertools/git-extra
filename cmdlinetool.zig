@@ -24,8 +24,8 @@ pub fn runGetOutput(
         .env_map = null,
         .max_output_bytes = std.math.maxInt(usize),
         .expand_arg0 = .no_expand,
-    }) catch |err|{
-        std.log.err("failed to execute '{s}': {}", .{argv[0], err});
+    }) catch |err| {
+        std.log.err("failed to execute '{s}': {}", .{ argv[0], err });
         return error.AlreadyReported;
     };
 }

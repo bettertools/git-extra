@@ -2,8 +2,8 @@ const std = @import("std");
 
 // todo: use quotes if arg contains spaces
 pub fn getCommandStringLength(argv: []const []const u8) usize {
-    var len : usize = 0;
-    var prefixLength : u8 = 0;
+    var len: usize = 0;
+    var prefixLength: u8 = 0;
     for (argv) |arg| {
         len += prefixLength + arg.len;
         prefixLength = 1;
@@ -13,7 +13,7 @@ pub fn getCommandStringLength(argv: []const []const u8) usize {
 
 pub fn writeCommandString(buf: [*]u8, argv: []const []const u8) void {
     var next = buf;
-    var prefix : []const u8 = "";
+    var prefix: []const u8 = "";
     for (argv) |arg| {
         if (prefix.len > 0) {
             @memcpy(next, prefix);
@@ -32,7 +32,7 @@ pub fn runPassed(result: *const std.process.Child.RunResult) bool {
         },
         else => {
             return false;
-        }
+        },
     }
 }
 pub fn runFailed(result: *const std.process.Child.RunResult) bool {
