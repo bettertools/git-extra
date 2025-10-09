@@ -11,7 +11,7 @@ var arena = std.heap.ArenaAllocator.init(std.heap.page_allocator);
 const allocator = arena.allocator();
 
 fn usage() !void {
-    try std.io.getStdErr().writer().writeAll(
+    try std.fs.File.stderr().writeAll(
         \\Usage:
         \\ git fetchout <repo> <branch>
         \\
@@ -20,7 +20,7 @@ fn usage() !void {
 
 fn help() !void {
     try usage();
-    try std.io.getStdErr().writer().writeAll(
+    try std.fs.File.stderr().writeAll(
         \\
         \\This command fetches a remote branch and checks it out.
         \\If a local branch with the same name already exists, it will
@@ -35,8 +35,14 @@ fn help() !void {
 }
 
 fn log(comptime fmt: []const u8, args: anytype) void {
-    std.io.getStdErr().writer().print(fmt ++ "\n", args) catch |err| std.debug.panic(
+    var buffer: [1000]u8 = undefined;
+    var stderr = std.fs.File.stderr().writer(&buffer);
+    stderr.interface.print(fmt ++ "\n", args) catch |err| std.debug.panic(
         "write to stderr failed with {s}",
+        .{@errorName(err)},
+    );
+    stderr.interface.flush() catch |err| std.debug.panic(
+        "flush stderr failed with {s}",
         .{@errorName(err)},
     );
 }
@@ -188,18 +194,22 @@ fn main2() !u8 {
 }
 
 fn promptYesNo(prompt: []const u8) !bool {
-    var answer = std.ArrayList(u8).init(allocator);
-    defer answer.deinit();
+    var buffer: [400]u8 = undefined;
+    var stdin = std.fs.File.stdin().reader(&buffer);
+
     while (true) {
         std.debug.print("{s}[y/n]? ", .{prompt});
-        //const answer = try std.io.readLine(&buffer);
-        answer.resize(0) catch @panic("codebug");
-        std.io.getStdIn().reader().readUntilDelimiterArrayList(&answer, '\n', 20) catch |e| switch (e) {
-            error.StreamTooLong => continue,
-            else => return e,
+        const line = blk: {
+            if (stdin.interface.takeDelimiterExclusive('\n')) |line|
+                break :blk line
+            else |err| switch (err) {
+                error.ReadFailed => return if (stdin.err) |e| e else error.ReadFailed,
+                error.EndOfStream => return false,
+                error.StreamTooLong => continue,
+            }
         };
-        if (std.mem.startsWith(u8, answer.items, "y")) return true;
-        if (std.mem.startsWith(u8, answer.items, "n")) return false;
+        if (std.mem.startsWith(u8, line, "y")) return true;
+        if (std.mem.startsWith(u8, line, "n")) return false;
     }
 }
 

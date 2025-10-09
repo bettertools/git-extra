@@ -2,6 +2,6 @@
     .name = .gitextra,
     .fingerprint = 0xba8cca52b36c487c,
     .version = "0.0.0",
-    .minimum_zig_version = "0.14.1",
+    .minimum_zig_version = "0.15.1",
     .paths = .{"."},
 }

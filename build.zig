@@ -16,10 +16,12 @@ fn addTool(
 ) void {
     const exe = b.addExecutable(.{
         .name = std.fs.path.stem(src),
-        .root_source_file = b.path(src),
-        .target = target,
-        .optimize = optimize,
-        .single_threaded = true,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path(src),
+            .target = target,
+            .optimize = optimize,
+            .single_threaded = true,
+        }),
     });
     b.installArtifact(exe);
 }

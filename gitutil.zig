@@ -17,7 +17,7 @@ pub fn parseGitShow(output: []const u8) !GitShowInfo {
     const shaEnd = std.mem.indexOfAny(u8, sha, "\r\n");
     if (shaEnd == null) {
         std.log.err("expected `git show` output to contain newline after commit but none was found:", .{});
-        try std.io.getStdErr().writer().writeAll(output);
+        try std.fs.File.stderr().writeAll(output);
         return error.AlreadyReported;
     } else {
         return GitShowInfo{

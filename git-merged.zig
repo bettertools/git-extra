@@ -14,7 +14,7 @@ pub fn oom(e: error{OutOfMemory}) noreturn {
 }
 
 fn usage() !void {
-    try std.io.getStdErr().writer().writeAll(
+    try std.fs.File.stderr().writeAll(
         \\Usage: git merged BRANCH
         \\Shows branches that have been merged into the given branch.
         \\
@@ -121,6 +121,10 @@ fn onRefsLine(
         against_sha,
     });
     if (is_ancestor_result.passed()) {
-        try std.io.getStdOut().writer().print("{s}\n", .{name});
+        var buffer: [1000]u8 = undefined;
+        var stdout = std.fs.File.stdout().writer(&buffer);
+        try stdout.interface.writeAll(name);
+        try stdout.interface.writeAll("\n");
+        try stdout.interface.flush();
     }
 }

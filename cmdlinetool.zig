@@ -5,18 +5,26 @@ const std = @import("std");
 
 const runutil = @import("zogrunutil.zig");
 
-fn logRun(allocator: std.mem.Allocator, argv: []const []const u8) !void {
-    const buffer = try allocator.alloc(u8, runutil.getCommandStringLength(argv));
-    defer allocator.free(buffer);
-    runutil.writeCommandString(buffer.ptr, argv);
-    try std.io.getStdErr().writer().print("[RUN] {s}\n", .{buffer});
+fn logRun(argv: []const []const u8) !void {
+    var buffer: [1000]u8 = undefined;
+    var file_writer = std.fs.File.stderr().writer(&buffer);
+    const writer = &file_writer.interface;
+    try writer.writeAll("[RUN] ");
+    var prefix: []const u8 = "";
+    for (argv) |arg| {
+        try writer.writeAll(prefix);
+        try writer.writeAll(arg);
+        prefix = " ";
+    }
+    try writer.writeAll("\n");
+    try writer.flush();
 }
 
 pub fn runGetOutput(
     allocator: std.mem.Allocator,
     argv: []const []const u8,
 ) !std.process.Child.RunResult {
-    try logRun(allocator, argv);
+    try logRun(argv);
     return std.process.Child.run(.{
         .allocator = allocator,
         .argv = argv,
@@ -31,7 +39,7 @@ pub fn runGetOutput(
 }
 
 pub fn run(allocator: std.mem.Allocator, argv: []const []const u8) !std.process.Child.Term {
-    try logRun(allocator, argv);
+    try logRun(argv);
     var proc = std.process.Child.init(argv, allocator);
     return proc.spawnAndWait();
 }
@@ -40,11 +48,11 @@ pub fn dumpRunResult(result: std.process.Child.RunResult) !bool {
     var hasOutput = false;
     if (result.stdout.len > 0) {
         hasOutput = true;
-        try std.io.getStdErr().writer().writeAll(result.stdout);
+        try std.fs.File.stderr().writeAll(result.stdout);
     }
     if (result.stderr.len > 0) {
         hasOutput = true;
-        try std.io.getStdErr().writer().writeAll(result.stderr);
+        try std.fs.File.stderr().writeAll(result.stderr);
     }
     return hasOutput;
 }
